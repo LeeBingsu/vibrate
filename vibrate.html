@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>버스 진동 상쇄 시뮬레이션</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        #busScene {
+            width: 100%;
+            height: 200px;
+            background-color: #87CEEB;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        #bus {
+            width: 200px;
+            height: 100px;
+            background-color: #4a90e2;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: transform 0.1s;
+        }
+        #passenger {
+            width: 40px;
+            height: 40px;
+            background-color: #f39c12;
+            position: absolute;
+            bottom: 10px;
+            left: 80px;
+            transition: transform 0.1s;
+        }
+        #road {
+            width: 100%;
+            height: 20px;
+            background-color: #555;
+            position: absolute;
+            bottom: 0;
+        }
+        .params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .param-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #status, #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #chartContainer {
+            margin-top: 20px;
+            height: 300px;
+        }
+        .principle {
+            background-color: #e8f4f8;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>버스 진동 상쇄 시뮬레이션</h1>
+        <div id="busScene">
+            <div id="bus">
+                <div id="passenger"></div>
+            </div>
+            <div id="road"></div>
+        </div>
+        <div class="params">
+            <div class="param-group">
+                <label for="busMass">버스 질량 (톤):</label>
+                <input type="number" id="busMass" value="10" min="1" max="20">
+            </div>
+            <div class="param-group">
+                <label for="passengerCount">탑승자 수:</label>
+                <input type="number" id="passengerCount" value="20" min="0" max="50">
+            </div>
+            <div class="param-group">
+                <label for="cancellationPower">역진동 장치 성능 (%):</label>
+                <input type="number" id="cancellationPower" value="80" min="0" max="100">
+            </div>
+            <div class="param-group">
+                <label for="roadCondition">도로 상태 (1-10):</label>
+                <input type="number" id="roadCondition" value="5" min="1" max="10">
+            </div>
+            <div class="param-group">
+                <label for="speed">주행 속도 (km/h):</label>
+                <input type="number" id="speed" value="60" min="0" max="120">
+            </div>
+            <div class="param-group">
+                <label for="airbagEfficiency">에어백 효율 (%):</label>
+                <input type="number" id="airbagEfficiency" value="50" min="0" max="100">
+            </div>
+            <div class="param-group">
+                <label for="frequency">역진동 주파수 (Hz):</label>
+                <input type="number" id="frequency" value="10" min="1" max="100">
+            </div>
+            <div class="param-group">
+                <label for="amplitude">역진동 진폭 (mm):</label>
+                <input type="number" id="amplitude" value="5" min="0" max="20">
+            </div>
+            <div class="param-group">
+                <label for="phaseAdjustment">역진동 위상 조정 (도):</label>
+                <input type="number" id="phaseAdjustment" value="0" min="-180" max="180">
+            </div>
+        </div>
+        <button onclick="toggleSimulation()">시뮬레이션 시작/정지</button>
+        <button onclick="toggleCancellation()">진동 상쇄 켜기/끄기</button>
+        <button onclick="toggleAirbag()">에어백 켜기/끄기</button>
+        <div id="status">시뮬레이션 정지됨</div>
+        <div id="result">최종 진동 상쇄 비율: <span id="vibrationReduction">0</span>%</div>
+        <div id="chartContainer">
+            <canvas id="vibrationChart"></canvas>
+        </div>
+        <div class="principle">
+            <h2>시뮬레이션에 사용된 물리학적 원리</h2>
+            <ol>
+                <li><strong>진동의 기본 원리:</strong> 사인 함수를 사용한 주기적 진동 모델링</li>
+                <li><strong>질량과 진동의 관계:</strong> F = ma (뉴턴의 제2법칙) 적용</li>
+                <li><strong>진동 상쇄의 원리:</strong> 파동의 중첩 원리 적용</li>
+                <li><strong>에어백의 충격 흡수 원리:</strong> 충격량 = 힘 × 시간 (I = F·t)</li>
+                <li><strong>도로 상태와 속도의 영향:</strong> 운동에너지 (E = ½mv²) 개념 연관</li>
+                <li><strong>랜덤 진동 요소:</strong> 실제 도로 환경의 불규칙성 표현</li>
+                <li><strong>운동량 보존:</strong> 전체 시스템의 운동량 보존</li>
+                <li><strong>데이터 시각화:</strong> 시간에 따른 진동 강도 변화 그래프화</li>
+                <li><strong>주파수 조정:</strong> 공명 현상을 피하고 최적의 상쇄 효과를 위한 주파수 조절</li>
+                <li><strong>진폭 제어:</strong> 에너지 효율성과 상쇄 효과의 균형을 위한 진폭 조절</li>
+                <li><strong>위상 동기화:</strong> 정확한 상쇄를 위한 입력 진동과 역진동의 위상 일치</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let isSimulating = false;
+        let isCancelling = false;
+        let isAirbagActive = false;
+        let simulationInterval;
+        let time = 0;
+        let chart;
+
+        function initChart() {
+            const ctx = document.getElementById('vibrationChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '버스 진동',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: '승객 체감 진동',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: '시간 (초)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '진동 강도'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        initChart();
+
+        function toggleSimulation() {
+            isSimulating = !isSimulating;
+            if (isSimulating) {
+                simulationInterval = setInterval(updateSimulation, 50);
+                document.getElementById('status').textContent = "시뮬레이션 실행 중";
+            } else {
+                clearInterval(simulationInterval);
+                document.getElementById('bus').style.transform = 'translateX(-50%) translateY(0)';
+                document.getElementById('passenger').style.transform = 'translateY(0)';
+                document.getElementById('status').textContent = "시뮬레이션 정지됨";
+            }
+        }
+
+        function toggleCancellation() {
+            isCancelling = !isCancelling;
+            updateStatus();
+        }
+
+        function toggleAirbag() {
+            isAirbagActive = !isAirbagActive;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            let statusText = "상태: ";
+            if (isCancelling) statusText += "진동 상쇄 활성화 ";
+            if (isAirbagActive) statusText += "에어백 활성화 ";
+            if (!isCancelling && !isAirbagActive) statusText += "모든 시스템 비활성화";
+            document.getElementById('status').textContent = statusText;
+        }
+
+        function updateSimulation() {
+            const bus = document.getElementById('bus');
+            const passenger = document.getElementById('passenger');
+            const busMass = parseFloat(document.getElementById('busMass').value);
+            const passengerCount = parseInt(document.getElementById('passengerCount').value);
+            const cancellationPower = parseFloat(document.getElementById('cancellationPower').value) / 100;
+            const roadCondition = parseInt(document.getElementById('roadCondition').value);
+            const speed = parseInt(document.getElementById('speed').value);
+            const airbagEfficiency = parseFloat(document.getElementById('airbagEfficiency').value) / 100;
+            const frequency = parseFloat(document.getElementById('frequency').value);
+            const amplitude = parseFloat(document.getElementById('amplitude').value);
+            const phaseAdjustment = parseFloat(document.getElementById('phaseAdjustment').value);
+
+            const totalMass = busMass + passengerCount * 0.07;
+            const roadFactor = (11 - roadCondition) / 5;
+            const speedFactor = speed / 60;
+
+            time += 0.05;
+
+            // 복합적인 진동 패턴 생성
+            const baseVibration = Math.sin(time * 10) * 2;
+            const roadVibration = Math.sin(time * 20) * roadFactor;
+            const speedVibration = Math.sin(time * 30) * speedFactor;
+            const randomVibration = (Math.random() - 0.5) * 2;
+
+            const totalVibration = (baseVibration + roadVibration + speedVibration + randomVibration) / totalMass;
+
+            bus.style.transform = `translateX(-50%) translateY(${totalVibration * 5}px)`;
+            
+            let passengerVibration = totalVibration;
+
+            if (isCancelling) {
+                const counterVibration = amplitude * Math.sin(2 * Math.PI * frequency * time + phaseAdjustment * Math.PI / 180);
+                passengerVibration -= counterVibration * cancellationPower;
+            }
+
+            if (isAirbagActive) {
+                passengerVibration *= (1 - airbagEfficiency);
+            }
+
+            passenger.style.transform = `translateY(${passengerVibration * 5}px)`;
+
+            // 차트 업데이트
+            updateChart(time, Math.abs(totalVibration), Math.abs(passengerVibration));
+
+            // 상태 업데이트
+            const vibrationReduction = ((totalVibration - Math.abs(passengerVibration)) / totalVibration * 100).toFixed(2);
+            let statusText = `버스 진동: ${Math.abs(totalVibration).toFixed(2)} | 승객 체감 진동: ${Math.abs(passengerVibration).toFixed(2)} | 진동 감소: ${vibrationReduction}%`;
+            document.getElementById('status').textContent = statusText;
+            document.getElementById('vibrationReduction').textContent = vibrationReduction;
+        }
+
+        function updateChart(time, busVibration, passengerVibration) {
+            chart.data.labels.push(time.toFixed(2));
+            chart.data.datasets[0].data.push(busVibration);
+            chart.data.datasets[1].data.push(passengerVibration);
+
+            // 최근 100개의 데이터 포인트만 유지
+            if (chart.data.labels.length > 100) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+                chart.data.datasets[1].data.shift();
+            }
+
+            chart.update('none');
+        }
+    </script>
+</body>
+</html>
